@@ -50,6 +50,7 @@ def train(train_loader, net, perturb, criterion, optimizer):
         # similarity
         distance = gamma * torch.norm(perturb(data), 2)
 
+        # Loss function for learning piracy protected network
         loss = ce_loss + raw_loss + distance
 
         optimizer.zero_grad()
