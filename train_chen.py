@@ -63,8 +63,8 @@ def train(train_loader, net, perturb, criterion, optimizer):
         train_loss += loss.item() * target.size(0)
         train_acc += (output.max(1)[1] == target).sum().item()
 
-    train_loss /= len(train_loader.dataset)
-    train_acc /= len(train_loader.dataset)
+    train_loss /= (len(train_loader.dataset) * 2)
+    train_acc /= (len(train_loader.dataset) * 2)
     return train_loss, train_acc
 
 
