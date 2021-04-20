@@ -19,7 +19,6 @@ class G(nn.Module):
         super().__init__()
         self.main = nn.Sequential(
                 nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2),
-                nn.BatchNorm2d(64),
                 nn.ReLU(True),
                 nn.Conv2d(64, 3, kernel_size=1, stride=1, padding=0),
                 nn.Tanh()
@@ -36,19 +35,20 @@ def train(train_loader, net, perturb, criterion, optimizer):
     gamma = 0.01
     softmax = nn.Softmax(dim=1)
 
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.cuda(), target.cuda()
-        # authorized
-        output = net(perturb(data) + data)
-        # plain
-        plain_output = net(data)
+    for batch_idx, (X, y) in enumerate(train_loader):
+        X, y = X.cuda(), y.cuda()
+
+        authorized = perturb(X) + X
+        data = torch.cat((authorized, X))
+        target = torch.cat((y, y))
+        output = net(data)
 
         # dissmilarity
-        raw_loss = torch.sum(softmax(plain_output) * F.one_hot(target))
+        raw_loss = torch.mean(softmax(output) * F.one_hot(target))
         # classification
         ce_loss = criterion(output, target)
         # similarity
-        distance = gamma * torch.norm(perturb(data), 2)
+        distance = gamma * torch.norm(perturb(X), 2)
 
         # Loss function for learning piracy protected network
         loss = ce_loss + raw_loss + distance
