@@ -38,17 +38,19 @@ def train(train_loader, net, perturb, criterion, optimizer):
     for batch_idx, (X, y) in enumerate(train_loader):
         X, y = X.cuda(), y.cuda()
 
-        authorized = perturb(X) + X
+        authorized = perturb(X)
         data = torch.cat((authorized, X))
         target = torch.cat((y, y))
         output = net(data)
+        mark = output.size(0) // 2
 
         # dissmilarity
-        raw_loss = torch.mean(softmax(output) * F.one_hot(target))
+        raw_loss = torch.mean(
+                softmax(output[mark:]) * F.one_hot(target[mark:]))
         # classification
-        ce_loss = criterion(output, target)
+        ce_loss = criterion(output[:mark], target[:mark])
         # similarity
-        distance = gamma * torch.norm(perturb(X), 2)
+        distance = gamma * torch.norm(authorized - X, 2)
 
         # Loss function for learning piracy protected network
         loss = ce_loss + raw_loss + distance
@@ -68,7 +70,7 @@ def train(train_loader, net, perturb, criterion, optimizer):
     return train_loss, train_acc
 
 
-def test(test_loader, net, perturb=None):
+def test(test_loader, net, perturb):
     global best_acc
 
     net.eval()
@@ -79,10 +81,7 @@ def test(test_loader, net, perturb=None):
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.cuda(), target.cuda()
-            if perturb:
-                output = net(perturb(data) + data)
-            else:
-                output = net(data)
+            output = net(perturb(data))
             test_loss += F.cross_entropy(output, target,
                                          reduction="sum").item()
             test_acc += (output.max(1)[1] == target).sum().item()
@@ -250,10 +249,6 @@ def main():
         "== Total training time: {:.4f} minutes =="
         .format((end_time - start_time) / 60)
     )
-
-    plain_loss, plain_acc = test(test_loader, net)
-    logger.info("== plain_test_acc: {:.4f} =="
-                .format(plain_acc))
     # history = {
     #         'loss': loss_history,
     #         'val_loss': val_loss_history,
